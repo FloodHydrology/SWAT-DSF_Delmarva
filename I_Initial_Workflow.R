@@ -76,11 +76,11 @@ setup_fun("run_3","TxtInOut286.zip", pause=T)
 #2.4 Execute SWAT simulations---------------------------------------------------
 t0<-Sys.time()
 setwd(paste0(temp_dir,"\\run_1\\TxtInOut\\"))
-system("swat_dsf.exe", wait = T)
-setwd(paste0(temp_dir,"\\run_1\\TxtInOut\\"))
-system("swat_dsf.exe", wait = T)
-setwd(paste0(temp_dir,"\\run_1\\TxtInOut\\"))
-system("swat_dsf.exe", wait = T)
+system2("./swat_dsf.exe", wait = F)
+setwd(paste0(temp_dir,"\\run_2\\TxtInOut\\"))
+system2("./swat_dsf.exe", wait = F)
+setwd(paste0(temp_dir,"\\run_3\\TxtInOut\\"))
+system2("./swat_dsf.exe", wait = T)
 tf<-Sys.time()
 tf-t0
 
