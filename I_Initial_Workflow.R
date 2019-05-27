@@ -20,8 +20,16 @@
 #1.0 Setup workspace------------------------------------------------------------
 #Clear memory
 remove(list=ls())
+
+#call required packages
+library(tidyverse)
+
+#Define Relevant Directories
 scratch_dir<-"C:\\ScratchWorkspace/"
 swat_dir<-"C:\\ScratchWorkspace/SWAT_Files/"
+
+#download giw info file
+df<-read_csv(paste0(swat_dir, "wetland_info.csv"))
 
 #2.0 Create function to run SWAT-DSF--------------------------------------------
 
@@ -69,9 +77,71 @@ setup_fun("run_1","TxtInOut1.zip")
 setup_fun("run_2","TxtInOut276.zip")
 setup_fun("run_3","TxtInOut286.zip", pause=T)
 
-#2.3 Change Input files---------------------------------------------------------
-#This is still TBD. Need to develop method to systemeatically change 
-#files.  Some thoughts...maybe a long walk required. 
+#2.3 Drain restored wetlands----------------------------------------------------
+#Phsuedo code --
+#  (1) Create "change" df whereyou have the following collumns: 
+#         BASINID, MAXVOLM3,MAXDEPTHMM,MAXAREAM2
+#  (2) Find all .giw files [in all three txt in/out files]
+#  (3) create function to edit .giw files using new values from "change" df
+
+#Create change matrix [this will be an input for the function later]
+df<-df %>% 
+  #Select relevant collumns
+  select(BasinID, volume_actual, depth_actual, area_actual) %>%
+  #rename so they match input files
+  rename(BASINID = BasinID, 
+         MAXVOLM3 = volume_actual, 
+         MAXDEPTHMM = depth_actual, 
+         MAXAREAM2 = area_actual)
+
+#Creatte list of .GIW files in temp folder
+files<-tibble(files = list.files(temp_dir, recursive = T)) %>%
+  filter(str_detect(files, ".giw"))
+
+#Create function to modify .giw files
+fun<-function(n){
+
+  #read .giw file in question 
+  giw<-read_table(paste0(temp_dir,"\\",files$files[n])) 
+    
+  #subset df to values in giw tibble
+  temp<-df[df$BASINID %in% giw$BASINID,] 
+  
+  #Conver to long format 
+  giw<-giw %>% gather("var", "value", -GLOBALHRUNUM, -BASINID)
+  temp<- temp %>% gather("var","new_value",-BASINID)
+  
+  #insert collumsn into giw and convert back to wide format
+  giw<-left_join(giw,temp) %>%
+    #Insert new value where appropriate
+    mutate(value = if_else(is.na(new_value), 
+                           value, 
+                           new_value)) %>%
+    #remove new value collumn
+    select(-new_value) %>%
+    #convert to wide format
+    spread(var, value) %>% 
+    #reorder collumns
+    select(GLOBALHRUNUM, LOCALHRUNUM, DRAINTONUM, GIWFLAG, BASINID,
+           MAXVOLM3, MAXDEPTHMM, MAXAREAM2, Volume0.1:Volume2.0, Area0.1:Area2.0)
+ 
+  #format giw [there has to be a better way to do this...]
+  giw<-as.data.frame(giw)
+  giw$GLOBALHRUNUM<-str_pad(giw$GLOBALHRUNUM,24, "left")
+  giw$LOCALHRUNUM<-str_pad(giw$LOCALHRUNUM,24, "left")
+  giw$DRAINTONUM<-str_pad(giw$DRAINTONUM,24, "left")
+  giw$GIWFLAG<-str_pad(giw$GIWFLAG,24, "left")
+  giw$BASINID<-str_pad(giw$BASINID,24, "left")
+  for(i in 6:ncol(giw)){giw[,i]<-formatC(giw[,i], format ="e", digits=19)}
+  colnames(giw)<-str_pad(colnames(giw),24, "left")
+  
+  #Write table
+  write.table(giw, paste0(temp_dir,"\\",files$files[n]), sep = " ", quote=F, row.names = F)
+}
+
+#Apply functin
+lapply(seq(1,nrow(files)), fun)
+
 
 #2.4 Execute SWAT simulations---------------------------------------------------
 t0<-Sys.time()
