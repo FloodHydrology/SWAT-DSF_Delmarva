@@ -22,7 +22,6 @@ library(data.table)
 library(lubridate)
 library(tidyverse)
 
-
 #Define Relevant Directories
 scratch_dir<-"C:\\ScratchWorkspace/"
 swat_dir<-"C:\\ScratchWorkspace/SWAT_Files/"
